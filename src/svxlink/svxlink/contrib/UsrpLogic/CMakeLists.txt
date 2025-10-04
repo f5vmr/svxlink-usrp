@@ -2,8 +2,11 @@ message(
   "--   The installing EXPERIMENTAL UsrpLogic extension"
 )
 
-add_manual_pages(UsrpLogic.conf.5)
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/UsrpLogic.conf.5)
 
+  add_manual_pages(UsrpLogic.conf.5)
+
+endif()
 # Build the plugin
 add_library(UsrpLogic MODULE UsrpLogic.cpp)
 set_target_properties(UsrpLogic PROPERTIES PREFIX "")
