@@ -343,11 +343,18 @@ set(CPACK_SET_DESTDIR "ON")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
   "Advanced voice services system for ham radio use")
 string(REPLACE "-" "." CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+string(REGEX REPLACE "^[Vv]" "" CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}")
+# If version does NOT start with a digit (e.g. "master", "main", "dev")
+# replace it with 25.5
+if(NOT CPACK_PACKAGE_VERSION MATCHES "^[0-9]")
+  set(CPACK_PACKAGE_VERSION "25.5")
+endif()
 message(STATUS "Package Version = ${CPACK_PACKAGE_VERSION}")
 set(CPACK_PACKAGE_DESCRIPTION
   "The SvxLink project develops an advanced voice services system for ham radio use. It can be run on a simplex frequency or act as a repeater controller.")
-set(CPACK_PACKAGE_VENDOR "SM0SVX")
+set(CPACK_PACKAGE_VENDOR "SM0SVX Modified by DL1HRC & G4NAB")
 set(CPACK_PACKAGE_CONTACT "SvxLink Community <svxlink@groups.io>")
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/../COPYRIGHT")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/../README.adoc")
 
