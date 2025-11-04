@@ -70,6 +70,8 @@
 
 * Add support for sigc++3
 
+* Add new config variable DTMF_IGNORE_WHEN_NOT_UP.
+
 
 
  1.9.1 -- 01 Jul 2025
@@ -96,9 +98,6 @@
 
  1.9.0 -- 03 May 2025
 ----------------------
-
-* MetarInfo some minor extensions regarding differently structured
-  metar files (e.g. wrong or missing timestamp)
 
 * Change reflector config at runtime.
   Contribution from DL1HRC/Adi, following an idea from DJ1JAY/Jens to change

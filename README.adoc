@@ -9,8 +9,6 @@ SvxLink is a project that develops software targeting the ham radio community.
 It started out as an EchoLink application for Linux back in 2003 but has now
 evolved to be something much more advanced.
 
-This version is a modified clone of the DL1HRC version of svxlink-usrp branch of svxlink.
-
 == SvxLink Server ==
 The SvxLink Server, often just called SvxLink, is a general purpose voice
 services system, which when connected to a transceiver, can act as both an

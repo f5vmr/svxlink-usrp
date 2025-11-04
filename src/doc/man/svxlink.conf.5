@@ -1,4 +1,4 @@
-.TH SVXLINK.CONF 5 "JULY 2025" Linux "File Formats"
+.TH SVXLINK.CONF 5 "OCTOBER 2025" Linux "File Formats"
 .
 .SH NAME
 .
@@ -629,6 +629,11 @@ Setting it to 0 or commenting it out disables the feature.
 This is the minimum time, in milliseconds, that a transmission must last to
 be considered as an identification. This is used as described in the
 IDENT_NAG_TIMEOUT configuration variable.
+.TP
+.B DTMF_IGNORE_WHEN_NOT_UP
+If set to 1 (default), all received DTMF will be ignored when the repeater is
+down (in inactive state). Those using a very short IDLE_TIMEOUT may need to set
+this config variable to 0 to get the desired behavior.
 .
 .SS ReflectorLogic
 .
@@ -906,6 +911,66 @@ It is also possible to set audio codec parameters using the same configuration
 variables as documented for networked receivers and transmitters. For example,
 to lighten the encoder CPU load for the Opus encoder, set OPUS_ENC_COMPLEXITY
 to something lower than 9.
+.
+.SS UsrpLogic
+.
+The UsprLogic is used to connect SvxLink with a digital Hamradio network. The 
+communication is based on Udp transmission. Some Hamradio applications
+are able to accept the protocol (Asterisk, MMDVM).
+.TP
+.B TYPE
+The type for a Usrp Logic is always "Usrp"
+.TP
+.B CALL
+Specify the callsign used at this logic.
+.TP
+.B USRP_HOST
+The hostname of the Usrp server.
+.TP
+.B USRP_TX_PORT
+The Udp port used to send Udp messages to Usrp server
+.TP
+.B USRP_RX_PORT
+The Udp port used to receive Udp messages from the Usrp server.
+.TP
+.B DMRID
+The DMR-ID ssigned to the callsign.
+.TP
+.B RPTID
+The repeater ID. It's not used in most cases.
+.TP
+.B DEFAULT_TG
+The talk group. Default is 0
+.TP
+.B DEFAULT_CC
+The color code. It's not used in most cases, default is 1
+.TP
+.B DEFAULT_TS
+The time slot. It's not used in most cases, default is 1
+.TP
+.B PREAMP
+The signal (internal audio from connected logic) will be amplified/reduced 
+by the specified number of dB. This processed audio is sent to the usrp server.
+.TP
+.B NET_PREAMP
+The signal received from Usrp network will be amplified/reduced by the 
+number of dB. This processed audio is sent to connected logics.
+.TP
+.B NET_LIMITER_THRESH
+Set the threshold, in dBFS, for the audio limiter from the net site. The audio 
+limiter really is a compressor with a very steep compression ratio like 10:1. 
+The limiter is used to help keeping down the audio level to not overmodulate 
+the local connected logics.A good value
+to start with for this parameter is then -6 but try to lower it further (like
+-9 to -12) if it does not affect audio quality negatively.
+.TP
+.B LOCAL_LIMITER_THRESH
+Set the threshold, in dBFS, for the audio limiter from the local site to Usrp 
+network. The audio limiter really is a compressor with a very steep compression 
+ratio like 10:1. The limiter is used to help keeping down the audio level to 
+not overmodulate the remote connected usrp nodes. A good value
+to start with for this parameter is then -6 but try to lower it further (like
+-9 to -12) if it does not affect audio quality negatively.
 .
 .SS QSO Recorder Section
 .
@@ -1577,13 +1642,13 @@ Use the SIGLEV_CONST configuration variable to set the signal level.
 .B HID_DEVICE
 This parameter defines the device your hidraw adapter is connected to. This 
 port is created by the linux/hidraw driver.
-e.g. HID_DEVICE=/dev/hidraw0
+e.g. HID_DEVICE=/dev/hidraw3
 .TP
 .B HID_SQL_PIN
 Define the pin your hardware squelch (from RX) is connected to. Valid values
 are VOL_UP, VOL_DN, MUTE_PLAY or MUTE_REC.
 
-Example: HID_SQL_PIN=VOL_DN
+Example: HID_SQL_PIN=VOL_UP
 .TP
 .B SIGLEV_SLOPE
 The slope (or gain) of the signal level detector. See chapter CALIBRATING THE
@@ -2393,7 +2458,7 @@ script handling all functions.
 .B HID_DEVICE
 Define the device node where your hidraw device is accessible at.
 
-Example: HID_DEVICE=/dev/hidraw0
+Example: HID_DEVICE=/dev/hidraw3
 .TP
 .B HID_PTT_PIN
 Define the pin your ptt control is connected to. Valid parameters are 
@@ -2862,10 +2927,10 @@ FREQUENCY=430.050     # tx-frequency is 430.050 MHz
 .TP
 .B FREQUENCY_SEPARATOR
 Use the specified character to separate the PHG from the frequency.
-Unfortunately different tranceivers understand different APRS formats. For
+Unfortunately different transceivers understand different APRS formats. For
 example the Yaesu FTM-510D require that no separator is used and the Kenwood
 TM-D710 require a separator (e.g. "/") to be present. The default is to use a
-slash as the separator charachter.
+slash as the separator character.
 .TP
 .B TX_OFFSET
 The tx offset is the number of kHz from the FREQUENCY where the node is
@@ -2958,7 +3023,7 @@ Specify which APRS symbol that should be displayed on maps. Symbols are
 specified using two characters where the first one determines which symbol
 table to use and the second one select the actual symbol to use from the
 selected table. So for example "/-" is a house and "/r" mean a repeater tower.
-For all details abount APRS symbols, have a look at the latest documentation:
+For all details about APRS symbols, have a look at the latest documentation:
 https://www.aprs.org/symbols/symbolsX.txt.
 The specified symbol is only applied to the base callsign and not to the
 Echolink one.
@@ -2985,7 +3050,7 @@ into the aprs network. Range: 5-60 minutes, default is 10 minutes
 .TP
 .B STATISTICS_LOGIC
 The name of the logic core that statistics (telemetry) should be sent for. If
-this configuration varible is not set, telemetry will be sent for all logics.
+this configuration variable is not set, telemetry will be sent for all logics.
 That will probably lead to unpredictable results but it depend on what logic
 core types that are loaded in SvxLink.
 

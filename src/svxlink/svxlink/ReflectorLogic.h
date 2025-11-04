@@ -324,7 +324,6 @@ class ReflectorLogic : public LogicBase
     void disconnect(void);
     void reconnect(void);
     bool isConnected(void) const;
-    bool isTcpLoggedIn(void) const { return m_con_state >= STATE_TCP_CONNECTED; }
     bool isLoggedIn(void) const { return m_con_state == STATE_CONNECTED; }
     void allEncodedSamplesFlushed(void);
     void flushTimeout(Async::Timer *t=0);
@@ -345,6 +344,7 @@ class ReflectorLogic : public LogicBase
     void handlePlaySilence(int duration);
     void handlePlayTone(int fq, int amp, int duration);
     void handlePlayDtmf(const std::string& digit, int amp, int duration);
+    std::string jsonToString(Json::Value eventmessage);
     bool getConfigValue(const std::string& section, const std::string& tag,
                         std::string& value);
     bool loadClientCertificate(void);

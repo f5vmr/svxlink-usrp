@@ -537,6 +537,7 @@ bool ReflectorLogic::initialize(Async::Config& cfgobj, const std::string& logic_
   prev_src = 0;
 
   cfg().getValue(name(), "DEFAULT_TG", m_default_tg);
+
   if (!cfg().getValue(name(), "TG_SELECT_TIMEOUT", 1U,
                       std::numeric_limits<unsigned>::max(),
                       m_tg_select_timeout, true))
@@ -547,7 +548,7 @@ bool ReflectorLogic::initialize(Async::Config& cfgobj, const std::string& logic_
     return false;
   }
 
-  m_tg_select_inhibit_timeout = m_tg_select_timeout;
+  m_tg_select_inhibit_timeout = (m_default_tg == 0) ? m_tg_select_timeout : 0;
   if (!cfg().getValue(name(), "TG_SELECT_INHIBIT_TIMEOUT", 0U,
                       std::numeric_limits<unsigned>::max(),
                       m_tg_select_inhibit_timeout, true))
@@ -945,6 +946,24 @@ void ReflectorLogic::remoteReceivedPublishStateEvent(
     }
     sendMsg(msg);
   }
+  else if (event_name == "QsoInfo:state")
+  {
+    std::istringstream is(data);
+    Json::Value user_info;
+    is >> user_info;
+    user_info["TG"] = m_selected_tg;
+    string ud =jsonToString(user_info);
+    
+     // cout << "sende: " << event_name << "," << ud << endl;
+    MsgStateEvent msg(logic->name(), event_name, ud);
+    sendMsg(msg);
+  }
+  else if (event_name == "Sds:info" || event_name == "DvUsers:info")
+  {
+   // cout << "sende: " << event_name << "," << data << endl;
+    MsgStateEvent msg(logic->name(), event_name, data);
+    sendMsg(msg);
+  }
 } /* ReflectorLogic::remoteReceivedPublishStateEvent */
 
 
@@ -982,7 +1001,7 @@ ReflectorLogic::~ReflectorLogic(void)
 
 void ReflectorLogic::onConnected(void)
 {
-  std::cout << "NOTICE: " << name() << ": Connection established to "
+  std::cout << "NOTICE[" << name() << "]: Connected to "
             << m_con.remoteHost() << ":" << m_con.remotePort()
             << " (" << (m_con.isPrimary() ? "primary" : "secondary") << ")"
             << std::endl;
@@ -1128,10 +1147,11 @@ void ReflectorLogic::onFrameReceived(FramedTcpConnection*,
     return;
   }
 
-  if ((header.type() > 100) && !isTcpLoggedIn())
+  if ((header.type() >= 100) && (m_con_state < STATE_AUTHENTICATED))
   {
-    cerr << "*** ERROR[" << name() << "]: Unexpected protocol message received"
-         << endl;
+    std::cerr << "*** ERROR[" << name()
+              << "]: Unexpected protocol message received with type="
+              << header.type() << std::endl;
     disconnect();
     return;
   }
@@ -2092,7 +2112,7 @@ bool ReflectorLogic::udpCipherDataReceived(const IpAddress& addr, uint16_t port,
 void ReflectorLogic::udpDatagramReceived(const IpAddress& addr, uint16_t port,
                                          void* aad, void *buf, int count)
 {
-  if (!isTcpLoggedIn())
+  if (m_con_state < STATE_EXPECT_START_UDP_ENCRYPTION)
   {
     return;
   }
@@ -2707,6 +2727,19 @@ void ReflectorLogic::handlePlayDtmf(const std::string& digit, int amp,
   setIdle(false);
   LinkManager::instance()->playDtmf(this, digit, amp, duration);
 } /* ReflectorLogic::handlePlayDtmf */
+
+
+string ReflectorLogic::jsonToString(Json::Value eventmessage)
+{
+  Json::StreamWriterBuilder builder;
+  std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+  std::ostringstream ostream;
+  writer->write(eventmessage, &ostream);
+  std::string message = ostream.str();
+  message.erase(std::remove_if(message.begin(), message.end(), 
+                [](unsigned char x){return std::iscntrl(x);}));
+  return message;
+} /* ReflectorLogic::jsonToString */
 
 
 bool ReflectorLogic::getConfigValue(const std::string& section,

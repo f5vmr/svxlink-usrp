@@ -9,7 +9,7 @@ A module (plugin) to request the latest METAR (weather) information from
 by using ICAO shortcuts.
 Look at http://en.wikipedia.org/wiki/METAR for further information
 
-Copyright (C) 2009-2024 Tobias Blomberg / SM0SVX
+Copyright (C) 2009-2019 Tobias Blomberg / SM0SVX
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -410,8 +410,7 @@ extern "C" {
 
 ModuleMetarInfo::ModuleMetarInfo(void *dl_handle, Logic *logic,
                                  const string& cfg_name)
-  : Module(dl_handle, logic, cfg_name), remarks(false), debug(false), http(0),
-    extension("")
+  : Module(dl_handle, logic, cfg_name), remarks(false), debug(false), http(0)
 {
   cout << "\tModule MetarInfo v" MODULE_METAR_INFO_VERSION " starting...\n";
 
@@ -604,8 +603,6 @@ bool ModuleMetarInfo::initialize(void)
   {
      longmsg = "_long ";  // taking "cavok_long" instead of "cavok"
   }
-
-  cfg().getValue(cfgName(), "EXTENSION", extension);
 
   return true;
 
@@ -867,11 +864,6 @@ void ModuleMetarInfo::openConnection(void)
               path += link;
               path += icao;
 
-  if (extension.length() > 0)
-  {
-    path += extension;
-  }
-
   http->AddRequest(path.c_str());
   cout << path << endl;
   http->metarInfo.connect(mem_fun(*this, &ModuleMetarInfo::onData));
@@ -897,7 +889,6 @@ void ModuleMetarInfo::onTimeout(void)
 
 void ModuleMetarInfo::onData(std::string metarinput, size_t count)
 {
-
   std::string metar = "";
   html += metarinput;
 
@@ -948,18 +939,18 @@ void ModuleMetarInfo::onData(std::string metarinput, size_t count)
   // the TXT version of METAR
   else 
   {
-    // This is a former METAR-report:
+    // This is a METAR-report:
     //
     // 2009/04/07 13:20
     // FBJW 071300Z 09013KT 9999 FEW030 29/15 Q1023 RMK ...
-    //
-    // This is delivered sometimes (no date and time stamp, just a single line):
-    // FBJW 071300Z 09013KT 9999 FEW030 29/15 Q1023 RMK
-    //
+
+    size_t found;
+    StrList values;
+    std::stringstream temp;
+
+    splitStr(values, html, "\n");
 
     // split \n -> <SPACE>
-    std::stringstream temp;
-    size_t found;
     while ((found = html.find('\n')) != string::npos) html[found] = ' ';
     if (html.find("404 Not Found") != string::npos)
     {
@@ -969,43 +960,39 @@ void ModuleMetarInfo::onData(std::string metarinput, size_t count)
       return;
     }
 
-    // check length of the metar
-    if (html.length() < 35)
+    metar = values.back();  // contains the METAR
+    values.pop_back();
+    std::string metartime = values.back();  // and the time at UTC
+
+     // check of valid metar file format
+    std::string reg = "^[0-9]{4}/[0-9]{2}/[0-9]{2}";
+    if (!rmatch(metartime, reg))
     {
-      cout << "ERROR: Metar info contain probably to less data or has a wrong "
-           << "format: \"" << html << "\"" << endl;
+      cout << "ERROR: wrong Metarfile format, first line should have the date + UTC and "
+           << "must have 16 digits, e.g.:\n"
+           << "2019/04/07 13:20" << endl;
       return;
     }
 
-    metar = html;
-     // check if metar file starts with a date- and timestamp, if so check
-     // if it is current otherwise return error
-    std::string reg = "^[0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}";
-    if (rmatch(metar, reg))
+    if ((metar.find(icao)) == string::npos)
     {
-      if (!isvalidUTC(metar.substr(0,16)))
-      {
-        cout << "ERROR: Metar is outdated." << endl;
-        temp << "metar_not_valid";
-        say(temp);
-        return;
-      }
-      metar.erase(0,17);
-    }
-
-    // check if icao digits at the beginning of the metar
-    reg = "^";
-    reg += icao;
-    if (!rmatch(metar, reg))
-    {
-      cout << "ERROR: metar does not begin with the icao code (" << icao
-           << ") and has probably the wrong structure." << endl;
+      cout << "ERROR: wrong Metarfile format, second line must begin with the correct "
+           << "ICAO airport code (" << icao << ") configured in ModuleMetarInfo.conf,"
+           << "but is \"" << metar << "\"" << endl;
       return;
     }
 
     if (debug)
     {
       cout << "TXT-METAR: " << metar << endl;
+    }
+
+    // check if METAR is actual
+    if (!isvalidUTC(metartime.substr(0,16)))
+    {
+      temp << "metar_not_valid";
+      say(temp);
+      return;
     }
   }
 
@@ -1492,7 +1479,7 @@ std::string ModuleMetarInfo::getLightning(std::string token)
 
     for (a=0; a<token.length(); a+=2)
     {
-      ss << "ltg_" << token.substr(a,2) << " ";
+       ss << "ltg_" << token.substr(a,2) << " ";
     }
 
     return ss.str();
@@ -1508,13 +1495,13 @@ std::string ModuleMetarInfo::getCloudType(std::string token)
    {
      for (a=0; a<15; a++)
      {
-       if (token.find(clouds[a],0) != string::npos)
-       {
-         ss << " cld_" << clouds[a] << " ";
-         token.erase(0,clouds[a].length());
-         ss << token.substr(0,1);
-         token.erase(0,1);
-       }
+        if (token.find(clouds[a],0) != string::npos)
+        {
+           ss << " cld_" << clouds[a] << " ";
+           token.erase(0,clouds[a].length());
+           ss << token.substr(0,1);
+           token.erase(0,1);
+        }
      }
    }
 
@@ -1713,45 +1700,45 @@ void ModuleMetarInfo::isRwyState(std::string &retval, std::string token)
 
    if (token.find("clrd") != string::npos)
    {
-     ss << " rwystate_clrd";
+      ss << " clrd";
+      retval = ss.str();
+      return;
+   }
+
+   // runway deposit type
+   ss << " " << rwydeposit[token.substr(1,1)[0]];
+
+   // runway contamination
+   ss << " " << contamination[token.substr(2,1)[0]];
+
+   // depth of deposit
+   if (atoi(token.substr(3,1).c_str()) > 91 || token.substr(3,2) == "//")
+   {
+      tt = deposit.find(token.substr(3,2));
+      ss << " " << tt->second << " ";
    }
    else
    {
-     // runway deposit type
-     ss << " " << rwydeposit[token.substr(1,1)[0]];
-
-     // runway contamination
-     ss << " " << contamination[token.substr(2,1)[0]];
-
-     // depth of deposit
-     if (atoi(token.substr(3,1).c_str()) > 91 || token.substr(3,2) == "//")
-     {
-       tt = deposit.find(token.substr(3,2));
-       ss << " " << tt->second << " ";
-     }
-     else
-     {
        ss << " deposit_depth ";
        if (atoi(token.substr(3,2).c_str()) == 0)
        {
-         ss << "less_than 1 unit_mm ";
+           ss << "less_than 1 unit_mm ";
        }
        else
        {
-         ss << " " << atoi(token.substr(3,2).c_str()) << " unit_mms ";
+           ss << " " << atoi(token.substr(3,2).c_str()) << " unit_mms ";
        }
-     }
    }
 
    // friction coeffizient
    if (atoi(token.substr(5,2).c_str()) > 90 || token.substr(5,2) == "//")
    {
-     tt = friction.find(token.substr(5,2));
-     ss << " " << tt->second;
+       tt = friction.find(token.substr(5,2));
+       ss << " " << tt->second;
    }
    else
    {
-     ss << " friction_coefficient 0." << atoi(token.substr(5,2).c_str());
+       ss << " friction_coefficient 0." << atoi(token.substr(5,2).c_str());
    }
 
    retval = ss.str();

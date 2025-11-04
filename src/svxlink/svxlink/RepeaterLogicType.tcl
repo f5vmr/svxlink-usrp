@@ -86,7 +86,10 @@ proc repeater_down {reason} {
 
   set now [clock seconds];
   if {$now-$prev_ident < $min_time_between_ident} {
-    CW::play "-";
+    playTone 400 900 50
+    playSilence 100
+    playTone 360 900 50
+    playSilence 500
     return;
   }
   set prev_ident $now;
