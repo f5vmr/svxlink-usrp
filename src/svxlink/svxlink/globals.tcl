@@ -24,7 +24,7 @@ if [info exists ::module_name] {
 #   msg The message to print
 #
 proc printDebug {msg} {
-  puts "### ${::print_prefix}: ${msg}"
+  #puts "### ${::print_prefix}: ${msg}"
 }
 
 
@@ -297,14 +297,14 @@ proc playMsg {context msg {warn 1}} {
 #
 proc printNamespaceTree {{ns ::} {indent "  "}} {
   if {$ns == "::"} {
-    printDebug "TCL namespace tree:"
+    #printDebug "TCL namespace tree:"
   }
   foreach child [namespace children $ns] {
     if {$child == "::tcl" || $child == "::oo" || $child == "::zlib"} {
       continue
     }
     set ns [namespace tail $child]
-    printDebug "${indent}${ns}"
+    #printDebug "${indent}${ns}"
     printNamespaceTree $child "$indent  "
   }
 }
