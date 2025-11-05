@@ -32,7 +32,7 @@ either C++ or TCL. Examples of modules are:
 
 == Qtel ==
 Qtel, the Qt EchoLink client, is a graphical application used to access the
-EchoLink network.
+EchoLink network. In most applications QT is not enabled as unnecessary.
 
 == Resources ==
 These are some of the resources connected to SvxLink:
