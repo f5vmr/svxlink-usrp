@@ -19,15 +19,15 @@
 [Unit]
 Description=SvxLink repeater control software GPIO setup
 Documentation=man:svxlink(1)
-
+#Deperecated in this version
 [Service]
-Type=oneshot
-ExecStart=@SBIN_INSTALL_DIR@/svxlink_gpio_up
-ExecStop=@SBIN_INSTALL_DIR@/svxlink_gpio_down
+#Type=oneshot
+#ExecStart=@SBIN_INSTALL_DIR@/svxlink_gpio_up
+#ExecStop=@SBIN_INSTALL_DIR@/svxlink_gpio_down
 #Restart=on-failure
-TimeoutStartSec=60
+#TimeoutStartSec=60
 WorkingDirectory=@SVX_SYSCONF_INSTALL_DIR@
-RemainAfterExit=True
+#RemainAfterExit=True
 
 [Install]
-WantedBy=multi-user.target
+#WantedBy=multi-user.target
