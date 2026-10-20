@@ -1,71 +1,210 @@
-Contrib: UsrpLogic
-==================
+# SvxLink-USRP 26.05.2
 
-----
-#
-# UsrpLogic (beta)
-# Adi Bier / DL1HRC (dl1hrc [at] gmx.de)
-#
-----
-== UsrpLogic ==
-Provides a Logic to connect to MMDVM services with USRP protocol.
+## Introduction
 
-This branch only works if you have the following things:
+SvxLink-USRP extends SvxLink 26.05.2 by adding `UsrpLogic`, providing a UDP-based USRP audio and metadata interface to compatible external radio and digital voice systems.
 
-- DV3000 USB-stick (hardware transcoder) or
-- md380-emu service
+The standard SvxLink functionality remains available, including SimplexLogic, RepeaterLogic, ReflectorLogic, EchoLink and the existing SvxLink module system.
 
-Here are quick-and-dirty installation/update documentation, keep in
-mind: No configuration will be done!
+USRP is implemented as an additional logic core, allowing it to be linked to other SvxLink logics without replacing them.
 
-The configuration of the Usrp part has been moved to this new file,
-normally found in /etc/svxlink/svxlink.d
+## Supported platforms
 
-== First time installation ==
-including German(!) voice announcements.
+This repository uses the SvxLink 26.05.2 build and packaging infrastructure.
 
-You may use my semi-automatic installation-script from here
-```
-http://svxlink.ham-radio-op.net/svxlink/svxlink-usrp.sh
-```
+The architecture alone does not determine compatibility; the target system must also provide the required runtime dependencies.
 
-Start installation as root:
-```
-wget -O - http://svxlink.ham-radio-op.net/svxlink/svxlink-usrp.sh | bash
-```
+## USRP audio requirements
 
-== Installation of SvxLink with UsrpLogic extension ==
+The original implementation supports USRP connections to compatible digital voice applications and gateways.
 
-```
-git clone https://github.com/dl1hrc/svxlink.git
-cd svxlink/src
-git checkout svxlink-usrp
-mkdir build
-cd build
-cmake -DUSE_QT=OFF -DCMAKE_INSTALL_PREFIX=/usr -DSYSCONF_INSTALL_DIR=/etc -DLOCAL_STATE_DIR=/var -DCMAKE_BUILD_TYPE=Release -DWITH_CONTRIB_USRP_LOGIC=ON ..
-make
-make install
+Depending on the connected system and the selected audio codec, a DV3000 hardware vocoder or `md380-emu` service may be required. The presence of UsrpLogic alone does not provide every digital voice codec.
+
+External applications must be configured separately to exchange compatible USRP audio and metadata.
+
+## Configuring UsrpLogic
+
+The dedicated configuration file is normally:
+
+`/etc/svxlink/svxlink.d/UsrpLogic.conf`
+
+Example configuration:
+
+```ini
+[UsrpLogic]
+TYPE=Usrp
+USRP_HOST=127.0.0.1
+USRP_TX_PORT=41234
+USRP_RX_PORT=41233
+CALL=N0CALL
+JITTER_BUFFER_DELAY=400
+NET_LIMITER_THRESH=-6
+LOCAL_LIMITER_THRESH=-6
+SHARE_USERINFO=0
+#DV_USER_INFOFILE=/etc/svxlink/dv_users.json
 ```
 
-Please not that the cmake-parameter "-DWITH_CONTRIB_USRP_LOGIC=ON" enables the
-UsrpLogic extension. Without this it will not work.
+Replace `N0CALL` with the appropriate callsign.
 
-== Update an existing usrp-contrib ==
+`USRP_HOST` identifies the external USRP endpoint. `USRP_TX_PORT` is the destination port to which SvxLink sends packets; `USRP_RX_PORT` is the local listening port. Configure the remote application with the corresponding reversed send and receive port assignments.
+
+Ensure that the UDP ports are available and that any required firewall rules permit communication.
+
+## Linking USRP to other SvxLink logics
+
+USRP must be included in the global `LOGICS` setting and connected using a section named in `LINKS`.
+
+The examples below show separate configurations. Use only the topology required by your installation.
+
+### Example 1 — USRP connected to a simplex node
+
+In `/etc/svxlink/svxlink.conf`:
+
+```ini
+[GLOBAL]
+LOGICS=SimplexLogic,UsrpLogic
+LINKS=LinkToUSRP
+
+[LinkToUSRP]
+CONNECT_LOGICS=SimplexLogic,UsrpLogic
+DEFAULT_ACTIVE=1
 ```
-systemctl stop svxlink
-cd /home/svxlink/svxlink/src/build/
-make clean
-git pull
-sudo make install
-sudo systemctl restart svxlink
+
+Retain the existing `[SimplexLogic]` configuration, including its receiver, transmitter, callsign and modules.
+
+`UsrpLogic` is configured independently in `svxlink.d/UsrpLogic.conf`.
+
+With the link enabled, audio can pass between the simplex radio interface and the USRP network endpoint.
+
+### Example 2 — USRP connected to a repeater
+
+```ini
+[GLOBAL]
+LOGICS=RepeaterLogic,UsrpLogic
+LINKS=LinkToUSRP
+
+[LinkToUSRP]
+CONNECT_LOGICS=RepeaterLogic,UsrpLogic
+DEFAULT_ACTIVE=1
 ```
 
-The new configuration file UsrpLogic.conf contains the [UsrpLogic]-section
-from svxlink.conf. This file is now located in /etc/svxlink/svxlink.d directory.
-Remove the [UsrpLogic]-section from svxlink.conf but let the LOGICS- and LINKS
-definitions with "Usrp" untouched.
+The existing repeater configuration remains responsible for local receiver, transmitter, identification and repeater control.
 
-== Documentation ==
-- manpages UsrpLogic.conf.5 svxlink.conf.5
-- German pdf (not up to date anymore) is available here:
-  https://github.com/dl1hrc/documentation
+USRP provides the additional network interface.
+
+### Example 3 — USRP alongside SvxReflector
+
+For an installation using a simplex radio, a reflector connection and USRP:
+
+```ini
+[GLOBAL]
+LOGICS=SimplexLogic,ReflectorLogic,UsrpLogic
+LINKS=LinkToReflector,LinkToUSRP
+
+[LinkToReflector]
+CONNECT_LOGICS=SimplexLogic,ReflectorLogic
+DEFAULT_ACTIVE=1
+
+[LinkToUSRP]
+CONNECT_LOGICS=SimplexLogic,UsrpLogic
+DEFAULT_ACTIVE=0
+```
+
+In this example, the reflector link is active by default, while the USRP link is initially disabled.
+
+This provides a starting point for installations where the operator wishes to control when an external USRP network is connected.
+
+**Important:** Activating both links can create an audio bridge between the reflector and the USRP system through the common simplex logic. Consider the implications for talkgroup routing, network policy, looping and unintended retransmission before enabling simultaneous operation.
+
+### Example 4 — USRP with EchoLink
+
+EchoLink normally operates as a module within SimplexLogic or RepeaterLogic, rather than as a separate logic core.
+
+For example:
+
+```ini
+[GLOBAL]
+LOGICS=SimplexLogic,UsrpLogic
+LINKS=LinkToUSRP
+
+[SimplexLogic]
+TYPE=Simplex
+RX=Rx1
+TX=Tx1
+MODULES=ModuleEchoLink
+CALLSIGN=N0CALL
+
+[LinkToUSRP]
+CONNECT_LOGICS=SimplexLogic,UsrpLogic
+DEFAULT_ACTIVE=1
+```
+
+This is a simplified example. Retain all other required settings from the existing SimplexLogic configuration.
+
+Audio from an active EchoLink session may be carried through the linked logic to USRP. Forwarding the remote EchoLink station's callsign and talker metadata is a separate capability that requires compatible event support.
+
+## Optional user information
+
+`SHARE_USERINFO` enables the USRP user-information exchange.
+
+For an initial installation, use:
+
+```ini
+SHARE_USERINFO=0
+#DV_USER_INFOFILE=/etc/svxlink/dv_users.json
+```
+
+Where digital voice user information is required, create and validate the JSON user-information file before enabling `DV_USER_INFOFILE`.
+
+The source implementation supports event names including `DvUsers:info` and `EchoLink:talker_state`. Compatibility with other network components depends on those components supporting the corresponding event messages.
+
+## Operational checks
+
+After configuring the installation:
+
+1. Confirm that SvxLink starts without logic initialisation errors.
+2. Confirm that the USRP service and configured UDP ports correspond.
+3. Establish local RF-to-USRP audio.
+4. Establish USRP-to-local RF audio.
+5. Check levels, limiter settings and transmit control.
+6. Check talker identification and metadata where enabled.
+7. Confirm that unrelated links and talkgroups do not receive unwanted audio.
+
+For operational repeaters, carry out initial transmit tests into a dummy load or another suitably controlled RF test arrangement.
+
+## Documentation
+
+Consult the installed `UsrpLogic.conf(5)` manual page for the individual USRP configuration parameters.
+
+For standard SvxLink settings, logic linking and module configuration, consult `svxlink.conf(5)`.
+
+## Acknowledgements
+
+SvxLink was developed by Tobias Blomberg, SM0SVX, with contributions from the SvxLink development community.
+
+The USRP extension was developed by Adi Bier, DL1HRC, and other contributors identified in the source history.
+
+The SvxLink-USRP 26.05.2 integration uses the current SvxLink source baseline and retains the original project licences and applicable copyright notices.
+
+== Installing SvxLink-USRP on an Existing Node or Repeater
+
+SvxLink-USRP 26.05.2 is designed as a replacement package for an existing SvxLink 26.05.2 installation.
+
+No separate USRP Dashboard is provided or required. The existing SvxLink-Dash V4.1 may be used to complete the initial radio, node, repeater and reflector configuration.
+
+IMPORTANT: Complete all normal Dashboard configuration and rebuild operations *before* installing and configuring the USRP extension.
+
+Once the existing SvxLink installation is operational:
+
+. Back up `/etc/svxlink/svxlink.conf` and the existing `svxlink.d` configuration directory.
+. Reinstall SvxLink using the appropriate SvxLink-USRP 26.05.2 Debian package.
+. Configure `/etc/svxlink/svxlink.d/UsrpLogic.conf` manually.
+. Add `UsrpLogic` to the `LOGICS` setting in the `[GLOBAL]` section of `svxlink.conf`.
+. Add the required USRP link definition to the `LINKS` setting and configure its `CONNECT_LOGICS` and `DEFAULT_ACTIVE` parameters.
+. Restart SvxLink and verify the USRP connection.
+
+Existing SimplexLogic, RepeaterLogic, ReflectorLogic and EchoLink settings should normally remain unchanged.
+
+CAUTION: Subsequent configuration rebuilds from SvxLink-Dash may regenerate `svxlink.conf` and overwrite manually added USRP settings. Manual changes should therefore be backed up before further Dashboard rebuild operations.
+
+SvxLink-USRP is intended to extend an existing operational installation, not replace the normal SvxLink configuration process.
